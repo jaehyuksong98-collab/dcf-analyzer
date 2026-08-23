@@ -27,6 +27,14 @@ def calculate_dcf(ticker: str,
     shares_outstanding = info.get('sharesOutstanding', 1)
     current_price = info.get('currentPrice', 0)
     company_name = info.get('longName', ticker)
+
+    if not current_price or current_price <= 0:
+        print(f"No valid current price found for '{ticker}'. Check the ticker symbol.")
+        return None
+    if not shares_outstanding or shares_outstanding <= 0:
+        print(f"No valid shares outstanding data found for '{ticker}'.")
+        return None
+
     scenarios = {
         'Optimistic': growth_optimistic,
         'Base': growth_base,
