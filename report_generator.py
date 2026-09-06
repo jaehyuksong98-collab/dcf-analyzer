@@ -12,28 +12,40 @@ load_dotenv()
 def fetch_recent_news(ticker: str, company_name: str, num_articles: int = 5) -> list:
     """Yahoo Finance RSS에서 최근 뉴스 가져오기"""
     try:
-        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        # Yahoo Finance 쿼리 API (RSS보다 안정적)
+        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={ticker}&newsCount={num_articles}&enableFuzzyQuery=false"
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
 
         articles = []
-        root = ET.fromstring(response.content)
+        news_items = data.get('news', [])[:num_articles]
+        for item in news_items:
+            articles.append({
+                'title': item.get('title', ''),
+                'link': item.get('link', ''),
+                'date': item.get('providerPublishTime', '')
+            })
 
+        if articles:
+            return articles
+
+        # fallback: RSS
+        rss_url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+        response = requests.get(rss_url, headers=headers, timeout=10)
+        root = ET.fromstring(response.content)
         items = root.findall('.//item')[:num_articles]
         for item in items:
-            title = item.find('title').text or ''
-            link = item.find('link').text or ''
-            pub_date = item.find('pubDate').text or ''
             articles.append({
-                'title': title,
-                'link': link,
-                'date': pub_date
+                'title': item.find('title').text or '',
+                'link': item.find('link').text or '',
+                'date': item.find('pubDate').text or ''
             })
         return articles
+
     except Exception as e:
         print(f"News fetch error: {e}")
         return []
-
 
 def summarize_news(articles: list, company_name: str, ticker: str) -> str:
     """Gemini로 뉴스 헤드라인 요약"""
