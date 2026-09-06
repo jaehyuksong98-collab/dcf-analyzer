@@ -2,7 +2,8 @@
 import os
 from dotenv import load_dotenv
 from google import genai
-
+import requests
+from datetime import datetime
 load_dotenv()
 
 def generate_ai_interpretation(dcf_result: dict) -> str:
