@@ -6,6 +6,56 @@ import requests
 from datetime import datetime
 load_dotenv()
 
+def fetch_recent_news(ticker: str, company_name: str, num_articles: int = 5) -> list:
+    """Yahoo Finance RSS에서 최근 뉴스 가져오기"""
+    try:
+        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        articles = []
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(response.content)
+        
+        items = root.findall('.//item')[:num_articles]
+        for item in items:
+            title = item.find('title').text or ''
+            link = item.find('link').text or ''
+            pub_date = item.find('pubDate').text or ''
+            articles.append({
+                'title': title,
+                'link': link,
+                'date': pub_date
+            })
+        return articles
+    except Exception as e:
+        print(f"News fetch error: {e}")
+        return []
+
+
+def summarize_news(articles: list, company_name: str, ticker: str) -> str:
+    """Gemini로 뉴스 헤드라인 요약"""
+    if not articles:
+        return "No recent news available."
+    
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    headlines = "\n".join([f"- {a['title']}" for a in articles])
+    
+    prompt = f"""You are a financial analyst. Summarize these recent news headlines about {company_name} ({ticker}) in 2-3 sentences. Plain text only, no markdown, no bullet points. Focus on what matters for investors.
+
+Headlines:
+{headlines}"""
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-pro",
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        return f"News summary unavailable: {e}"
+
 def generate_ai_interpretation(dcf_result: dict) -> str:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
